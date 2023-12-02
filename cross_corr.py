@@ -35,10 +35,10 @@ class Timing(object):
         return time.time() - self.start 
 
     def __str__(self):
-        return str(time.time() - self.start)
+        return str(self.__call__())
 
     def __repr__(self):
-        return str(time.time() - self.start)
+        return str(self.__call__())
 
 def cal_pearsonr(x, y):
     try:
@@ -271,7 +271,7 @@ if __name__ == "__main__":
             cond_on = list(set(main_df.columns).intersection(cond_cols))
         
         cond_cols = [col for col in cond_cols if col not in cond_on] if len(cond_cols_used) == 0 else cond_cols_used # 排除index col来得到最终使用的cond cols
-
+        print(f"采用的矫正因素有：{','.join(cond_cols)}")
         main_df = main_df.merge(cond_df, left_on=on_cols, right_on=cond_on)
         del cond_df
 
@@ -292,6 +292,8 @@ if __name__ == "__main__":
     if lowmem: # save to local tmp file and read while running
         parts_df = [] 
         tmp_dir = Path(output).parent
+        print(f"--lowmem ， 采用低内存模式，将会保存中间文件到本地，可能会占用大量磁盘空间，保存在该路径下：{str(tmp_dir)}")
+
         for idx, part_cols in enumerate(average_list(query_cols, threads)):
             tmp_save_file = tmp_dir/f"tmp_part_{i}.pkl"
             if cond_path: # save with cond_cols
@@ -330,4 +332,4 @@ if __name__ == "__main__":
     else:
         corr_results_df.to_csv(output, index=False, na_rep="NA")
 
-    print(timing)
+    print(f"总共消耗{timing:.2f}s")
