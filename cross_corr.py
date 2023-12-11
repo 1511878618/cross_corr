@@ -18,6 +18,7 @@ import os
 import time 
 import warnings
 import textwrap
+from tqdm import tqdm 
 
 import statsmodels.api as sm
 
@@ -143,14 +144,23 @@ def cross_corrs(main_df, key_cols, method="pearson", cond_cols=None):
 
     query_cols = list(set(main_df.columns) - set(key_cols)) if cond_cols is None else list(set(main_df.columns) - set(key_cols) - set(cond_cols)) # main_df.columns - key_cols => query_cols 
     
+    # total = len(query_cols) * len(key_cols)
+
+    # pbar = tqdm(
+    #         unit="it",
+    #         total=total,
+    #         desc=f"Cal corrs with {method} method",
+    #     )
+
     for query_col in query_cols: # query 
         for key_col in key_cols: # key
             q_k_df = main_df[[query_col, key_col]].dropna()  # drop na
 
             # cal corrs 
             # corr_dict = cal_corrs(x = q_k_df[query_col], y= q_k_df[key_col], method=method)
-            corr_dict = cal_corrs(data = main_df, x= query_col, y=key_col, method = method, cond_cols = cond_cols)
+            corr_dict = cal_corrs(data = q_k_df, x= query_col, y=key_col, method = method, cond_cols = cond_cols)
             res.append({**{"query":query_col, "key":key_col} , **corr_dict})
+            # pbar.update(1)
     return pd.DataFrame(res) 
 
 def read_data(path:str):
@@ -195,6 +205,7 @@ def getParser():
             cross_corr.py -q Olink_v2.pkl -k cad.pkl -o cad_olink/cad_olink_linear.csv --method linear -t 5 --key_cols ldl_a
             2. for logistic --method logistic; q is x while k is y; will conbiantion x1 with y....x_n with y and only use --key_cols or all if no --key_cols
             cross_corr.py -q Olink_v2.pkl -k cad.pkl -o cad_olink/cad_olink_logistic.csv --method logistic -t 5 --key_cols cad
+            3. for only pearson corr --method pearson; q and k will cal pearson corr --key_cols will use selected cols or all if no --key_cols
         """
         ),
     )
@@ -318,8 +329,8 @@ if __name__ == "__main__":
         cal_corrs_multiprocess = partial(cross_corrs, key_cols = key_cols, method=method)
 
     with Pool(threads) as p: 
-        res = p.map(cal_corrs_multiprocess, parts_df)
-
+        # res = list(tqdm(p.imap(cal_corrs_multiprocess, parts_df), total=len(parts_df), desc="正在计算..."))
+        p.map(cal_corrs_multiprocess, parts_df)
     corr_results_df = pd.concat(res).reset_index(drop=True)
 
     if lowmem: 
@@ -332,4 +343,4 @@ if __name__ == "__main__":
     else:
         corr_results_df.to_csv(output, index=False, na_rep="NA")
 
-    print(f"总共消耗{timing:.2f}s")
+    print(f"总共消耗{timing():.2f}s")
